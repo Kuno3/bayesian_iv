@@ -160,7 +160,6 @@ class bayesian_iv():
         else:
             return beta_nt
 
-  
     def beta_co_c_sampler(self, G, beta_co_c):
         beta_co_c_new = beta_co_c + self.prop_scale['beta_co_c'] * np.random.randn(self.dim)
 
@@ -324,46 +323,26 @@ class bayesian_iv():
                 self.beta_co_t_samples[i-burn_in, :] = beta_co_t
                 self.lp_list[i-burn_in] = self.log_posterior(G, gamma_at, gamma_nt, beta_at, beta_nt, beta_co_c, beta_co_t)
     
-    def theta_sampler(self, G, gamma_at, gamma_nt, beta_at, beta_nt, beta_co_c, beta_co_t, step_size, num_step):
-        r_init = np.random.randn(6 * self.dim)
+    def gamma_sampler(self, G, gamma_at, gamma_nt, step_size, num_step):
+        r_init = np.random.randn(2 * self.dim)
         r = r_init - step_size / 2 * np.concatenate([
             self.d_nlp_d_gamma_at(G, gamma_at, gamma_nt),
-            self.d_nlp_d_gamma_nt(G, gamma_at, gamma_nt),
-            self.d_nlp_d_beta_at(G, beta_at),
-            self.d_nlp_d_beta_nt(G, beta_nt),
-            self.d_nlp_d_beta_co_c(G, beta_co_c),
-            self.d_nlp_d_beta_co_t(G, beta_co_t)
+            self.d_nlp_d_gamma_nt(G, gamma_at, gamma_nt)
         ])
         gamma_at_new = gamma_at + step_size * r[:self.dim]
         gamma_nt_new = gamma_nt + step_size * r[self.dim:2*self.dim]
-        beta_at_new = beta_at + step_size * r[2*self.dim:3*self.dim]
-        beta_nt_new = beta_nt + step_size * r[3*self.dim:4*self.dim]
-        beta_co_c_new = beta_co_c + step_size * r[4*self.dim:5*self.dim]
-        beta_co_t_new = beta_co_t + step_size * r[5*self.dim:6*self.dim]
         
         for _ in range(num_step-1):
             r += - step_size * np.concatenate([
                 self.d_nlp_d_gamma_at(G, gamma_at_new, gamma_nt_new),
-                self.d_nlp_d_gamma_nt(G, gamma_at_new, gamma_nt_new),
-                self.d_nlp_d_beta_at(G, beta_at_new),
-                self.d_nlp_d_beta_nt(G, beta_nt_new),
-                self.d_nlp_d_beta_co_c(G, beta_co_c_new),
-                self.d_nlp_d_beta_co_t(G, beta_co_t_new)
+                self.d_nlp_d_gamma_nt(G, gamma_at_new, gamma_nt_new)
             ])
             gamma_at_new += step_size * r[:self.dim]
             gamma_nt_new += step_size * r[self.dim:2*self.dim]
-            beta_at_new += step_size * r[2*self.dim:3*self.dim]
-            beta_nt_new += step_size * r[3*self.dim:4*self.dim]
-            beta_co_c_new += step_size * r[4*self.dim:5*self.dim]
-            beta_co_t_new += step_size * r[5*self.dim:6*self.dim]
 
         r += - step_size / 2 * np.concatenate([
             self.d_nlp_d_gamma_at(G, gamma_at_new, gamma_nt_new),
-            self.d_nlp_d_gamma_nt(G, gamma_at_new, gamma_nt_new),
-            self.d_nlp_d_beta_at(G, beta_at_new),
-            self.d_nlp_d_beta_nt(G, beta_nt_new),
-            self.d_nlp_d_beta_co_c(G, beta_co_c_new),
-            self.d_nlp_d_beta_co_t(G, beta_co_t_new)
+            self.d_nlp_d_gamma_nt(G, gamma_at_new, gamma_nt_new)
         ])
 
         # deciding accept gamma_at and gamma_nt or not
@@ -376,11 +355,45 @@ class bayesian_iv():
         else:
             gamma_at_prop = gamma_at
             gamma_nt_prop = gamma_nt
+        
+        return gamma_at_prop, gamma_nt_prop
+
+    def beta_sampler(self, G, beta_at, beta_nt, beta_co_c, beta_co_t, step_size, num_step):
+        r_init = np.random.randn(4 * self.dim)
+        r = r_init - step_size / 2 * np.concatenate([
+            self.d_nlp_d_beta_at(G, beta_at),
+            self.d_nlp_d_beta_nt(G, beta_nt),
+            self.d_nlp_d_beta_co_c(G, beta_co_c),
+            self.d_nlp_d_beta_co_t(G, beta_co_t)
+        ])
+        beta_at_new = beta_at + step_size * r[:self.dim]
+        beta_nt_new = beta_nt + step_size * r[self.dim:2*self.dim]
+        beta_co_c_new = beta_co_c + step_size * r[2*self.dim:3*self.dim]
+        beta_co_t_new = beta_co_t + step_size * r[3*self.dim:]
+        
+        for _ in range(num_step-1):
+            r += - step_size * np.concatenate([
+                self.d_nlp_d_beta_at(G, beta_at_new),
+                self.d_nlp_d_beta_nt(G, beta_nt_new),
+                self.d_nlp_d_beta_co_c(G, beta_co_c_new),
+                self.d_nlp_d_beta_co_t(G, beta_co_t_new)
+            ])
+            beta_at_new += step_size * r[:self.dim]
+            beta_nt_new += step_size * r[self.dim:2*self.dim]
+            beta_co_c_new += step_size * r[2*self.dim:3*self.dim]
+            beta_co_t_new += step_size * r[3*self.dim:]
+
+        r += - step_size / 2 * np.concatenate([
+            self.d_nlp_d_beta_at(G, beta_at_new),
+            self.d_nlp_d_beta_nt(G, beta_nt_new),
+            self.d_nlp_d_beta_co_c(G, beta_co_c_new),
+            self.d_nlp_d_beta_co_t(G, beta_co_t_new)
+        ])
 
         lp_old = self.log_posterior_beta_at(G, beta_at)
         lp_new = self.log_posterior_beta_at(G, beta_at_new)
         threshold = np.log(np.random.rand())
-        if threshold < lp_new - sum(r[2*self.dim:3*self.dim]**2) / 2 - lp_old + sum(r_init[2*self.dim:3*self.dim]**2) / 2:
+        if threshold < lp_new - sum(r[:self.dim]**2) / 2 - lp_old + sum(r_init[:self.dim]**2) / 2:
             beta_at_prop = beta_at_new
         else:
             beta_at_prop = beta_at
@@ -388,7 +401,7 @@ class bayesian_iv():
         lp_old = self.log_posterior_beta_nt(G, beta_nt)
         lp_new = self.log_posterior_beta_nt(G, beta_nt_new)
         threshold = np.log(np.random.rand())
-        if threshold < lp_new - sum(r[3*self.dim:4*self.dim]**2) / 2 - lp_old + sum(r_init[3*self.dim:4*self.dim]**2) / 2:
+        if threshold < lp_new - sum(r[self.dim:2*self.dim]**2) / 2 - lp_old + sum(r_init[self.dim:2*self.dim]**2) / 2:
             beta_nt_prop = beta_nt_new
         else:
             beta_nt_prop = beta_nt
@@ -396,7 +409,7 @@ class bayesian_iv():
         lp_old = self.log_posterior_beta_co_c(G, beta_co_c)
         lp_new = self.log_posterior_beta_co_c(G, beta_co_c_new)
         threshold = np.log(np.random.rand())
-        if threshold < lp_new - sum(r[4*self.dim:5*self.dim]**2) / 2 - lp_old + sum(r_init[4*self.dim:5*self.dim]**2) / 2:
+        if threshold < lp_new - sum(r[2*self.dim:3*self.dim]**2) / 2 - lp_old + sum(r_init[2*self.dim:3*self.dim]**2) / 2:
             beta_co_c_prop = beta_co_c_new
         else:
             beta_co_c_prop = beta_co_c
@@ -404,12 +417,12 @@ class bayesian_iv():
         lp_old = self.log_posterior_beta_co_t(G, beta_co_t)
         lp_new = self.log_posterior_beta_co_t(G, beta_co_t_new)
         threshold = np.log(np.random.rand())
-        if threshold < lp_new - sum(r[5*self.dim:]**2) / 2 - lp_old + sum(r_init[5*self.dim:]**2) / 2:
+        if threshold < lp_new - sum(r[3*self.dim:]**2) / 2 - lp_old + sum(r_init[3*self.dim:]**2) / 2:
             beta_co_t_prop = beta_co_t_new
         else:
             beta_co_t_prop = beta_co_t
 
-        return gamma_at_prop, gamma_nt_prop, beta_at_prop, beta_nt_prop, beta_co_c_prop, beta_co_t_prop
+        return beta_at_prop, beta_nt_prop, beta_co_c_prop, beta_co_t_prop
 
     def d_nlp_d_gamma_at(self, G, gamma_at, gamma_nt):
         d_log_prior = (self.N_a / 12 / self.N) * (self.X.sum(axis=0) - 3 * (self.X * (np.exp(self.X.dot(gamma_at)) / (1 + np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))))[:, np.newaxis]).sum(axis=0))
@@ -524,8 +537,8 @@ class bayesian_iv():
         num_samples,
         thinning=1,
         burn_in=0,
-        step_size=0.01,
-        num_step=1,
+        step_size={"gamma": 1e-3, "beta": 1e-4},
+        num_step={"gamma": 1, "beta": 1},
         gamma_at_init=None,
         gamma_nt_init=None,
         beta_at_init=None,
@@ -581,7 +594,8 @@ class bayesian_iv():
         for i in tqdm(range(burn_in+num_samples)):
             for _ in range(thinning):
                 G = self.G_sampler(gamma_at, gamma_nt, beta_at, beta_nt, beta_co_c, beta_co_t)
-                gamma_at, gamma_nt, beta_at, beta_nt, beta_co_c, beta_co_t = self.theta_sampler(G, gamma_at, gamma_nt, beta_at, beta_nt, beta_co_c, beta_co_t, step_size, num_step)
+                gamma_at, gamma_nt = self.gamma_sampler(G, gamma_at, gamma_nt, step_size["gamma"], num_step["gamma"])
+                beta_at, beta_nt, beta_co_c, beta_co_t = self.beta_sampler(G, beta_at, beta_nt, beta_co_c, beta_co_t, step_size["beta"], num_step["beta"])
 
             if i >= burn_in:
                 self.G_samples[i-burn_in, :] = G
