@@ -79,23 +79,14 @@ class bayesian_iv():
 
         return G
 
-    def gamma_at_sampler(self, G, gamma_at, gamma_nt):
+    def d_nlp_d_gamma_at(self, G, gamma_at, gamma_nt):
         if sum(G==0) > 0:
             X_at = self.X[G==0]
-
-            gamma_at_new = gamma_at + self.prop_scale['gamma_at'] * np.random.randn(self.dim)
-
-            log_likelihood_old = X_at.dot(gamma_at).sum() - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum()
-            log_likelihood_new = X_at.dot(gamma_at_new).sum() - np.log1p(np.exp(self.X.dot(gamma_at_new)) + np.exp(self.X.dot(gamma_nt))).sum()
-            log_prior_old = (self.N_a / 12 / self.N) * (self.X.dot(gamma_at).sum() - 3 * np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum())
-            log_prior_new = (self.N_a / 12 / self.N) * (self.X.dot(gamma_at_new).sum() - 3 * np.log1p(np.exp(self.X.dot(gamma_at_new)) + np.exp(self.X.dot(gamma_nt))).sum())
-            log_acceptance_ratio = log_likelihood_new + log_prior_new - log_likelihood_old - log_prior_old
-            if log_acceptance_ratio > np.log(np.random.rand()):
-                return gamma_at_new
-            else:
-                return gamma_at
+            d_log_likelihood = X_at.sum(axis=0) - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum()
+            d_log_prior = (self.N_a / 12 / self.N) * (self.X.sum(axis=0) - 3 * np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum())
+            return - d_log_likelihood - d_log_prior
         else:
-            return gamma_at
+            return 0
     
     def gamma_nt_sampler(self, G, gamma_at, gamma_nt):
         if sum(G==1) > 0:
