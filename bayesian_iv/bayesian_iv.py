@@ -88,8 +88,8 @@ class bayesian_iv():
             log_likelihood_old = X_at.dot(gamma_at).sum() - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum()
             log_likelihood_new = X_at.dot(gamma_at_new).sum() - np.log1p(np.exp(self.X.dot(gamma_at_new)) + np.exp(self.X.dot(gamma_nt))).sum()
         else:
-            log_likelihood_old = 0
-            log_likelihood_new = 0
+            log_likelihood_old = - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum()
+            log_likelihood_new = - np.log1p(np.exp(self.X.dot(gamma_at_new)) + np.exp(self.X.dot(gamma_nt))).sum()
 
         log_prior_old = (self.N_a / 12 / self.N) * (self.X.dot(gamma_at).sum() - 3 * np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum())
         log_prior_new = (self.N_a / 12 / self.N) * (self.X.dot(gamma_at_new).sum() - 3 * np.log1p(np.exp(self.X.dot(gamma_at_new)) + np.exp(self.X.dot(gamma_nt))).sum())
