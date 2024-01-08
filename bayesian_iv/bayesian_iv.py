@@ -80,7 +80,7 @@ class bayesian_iv():
         log_prob_y1_given_at = X_z1_w1.dot(beta_at) - np.log1p(np.exp(X_z1_w1.dot(beta_at)))
         # log p(Y = 0, | G_i = co, \theta)
         log_prob_y0_given_co_t = - np.log1p(np.exp(X_z1_w1.dot(beta_co_t)))
-        # log p(Y = 0, | G_i = nt, \theta)
+        # log p(Y = 0, | G_i = at, \theta)
         log_prob_y0_given_at = - np.log1p(np.exp(X_z1_w1.dot(beta_at)))
         # log p(G_i = co | Y_i, \theta)
         logp = Y_z1_w1 * (log_prob_co + log_prob_y1_given_co_t - np.log(np.exp(log_prob_co + log_prob_y1_given_co_t) + np.exp(log_prob_at + log_prob_y1_given_at)))
