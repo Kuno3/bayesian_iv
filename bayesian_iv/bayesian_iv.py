@@ -35,43 +35,57 @@ class bayesian_iv():
         """
         G = np.zeros(self.N)
         
-        # pattern for (z = 0) & (w = 1)
+        # pattern for (Z_i = 0) & (W_i = 1)
         G[(self.Z == 0) & (self.W == 1)] = 0
 
-        # pattern for (z = 1) & (w = 0)
+        # pattern for (Z_i = 1) & (W_i = 0)
         G[(self.Z == 1) & (self.W == 0)] = 1
 
-        # pattern for (z = 0) & (w = 0)
+        # pattern for (Z_i = 0) & (W_i = 0)
         X_z0_w0 = self.X[(self.Z == 0) & (self.W == 0)]
         Y_z0_w0 = self.Y[(self.Z == 0) & (self.W == 0)]
         N_z0_w0 = len(Y_z0_w0)
+        # log p(G_i = co | Y, \theta)
         log_prob_co = - np.log1p(np.exp(X_z0_w0.dot(gamma_at)) + np.exp(X_z0_w0.dot(gamma_nt)))
+        # log p(G_i = nt | Y, \theta)
         log_prob_nt = X_z0_w0.dot(gamma_nt) - np.log1p(np.exp(X_z0_w0.dot(gamma_at)) + np.exp(X_z0_w0.dot(gamma_nt)))
+        # log p(Y = 1, | G_i = co, \theta)
         log_prob_y1_given_co_c = X_z0_w0.dot(beta_co_c) - np.log1p(np.exp(X_z0_w0.dot(beta_co_c)))
+        # log p(Y = 1, | G_i = nt, \theta)
         log_prob_y1_given_nt = X_z0_w0.dot(beta_nt) - np.log1p(np.exp(X_z0_w0.dot(beta_nt)))
+        # log p(Y = 0, | G_i = co, \theta)
         log_prob_y0_given_co_c = - np.log1p(np.exp(X_z0_w0.dot(beta_co_c)))
+        # log p(Y = 0, | G_i = nt, \theta)
         log_prob_y0_given_nt = - np.log1p(np.exp(X_z0_w0.dot(beta_nt)))
-
+        # log p(G_i = co | Y_i, \theta)
         logp = Y_z0_w0 * (log_prob_co + log_prob_y1_given_co_c - np.log(np.exp(log_prob_co + log_prob_y1_given_co_c) + np.exp(log_prob_nt + log_prob_y1_given_nt)))
         logp += (1-Y_z0_w0) * (log_prob_co + log_prob_y0_given_co_c - np.log(np.exp(log_prob_co + log_prob_y0_given_co_c) + np.exp(log_prob_nt + log_prob_y0_given_nt)))
+        # Deciding co or nt
         threshold = np.log(np.random.rand(N_z0_w0))
         G_z0_w0 = np.ones(N_z0_w0)
         G_z0_w0[threshold < logp] = 2
         G[(self.Z == 0) & (self.W == 0)] = G_z0_w0
 
-        # pattern for (z = 1) & (w = 1)
+        # pattern for (Z_i = 1) & (W_i = 1)
         X_z1_w1 = self.X[(self.Z == 1) & (self.W == 1)]
         Y_z1_w1 = self.Y[(self.Z == 1) & (self.W == 1)]
         N_z1_w1 = len(Y_z1_w1)
+        # log p(G_i = co | Y, \theta)
         log_prob_co = - np.log1p(np.exp(X_z1_w1.dot(gamma_at)) + np.exp(X_z1_w1.dot(gamma_nt)))
+        # log p(G_i = at | Y, \theta)
         log_prob_at = X_z1_w1.dot(gamma_at) - np.log1p(np.exp(X_z1_w1.dot(gamma_at)) + np.exp(X_z1_w1.dot(gamma_nt)))
+        # log p(Y = 1, | G_i = co, \theta)
         log_prob_y1_given_co_t = X_z1_w1.dot(beta_co_t) - np.log1p(np.exp(X_z1_w1.dot(beta_co_t)))
+        # log p(Y = 1, | G_i = at, \theta)
         log_prob_y1_given_at = X_z1_w1.dot(beta_at) - np.log1p(np.exp(X_z1_w1.dot(beta_at)))
+        # log p(Y = 0, | G_i = co, \theta)
         log_prob_y0_given_co_t = - np.log1p(np.exp(X_z1_w1.dot(beta_co_t)))
+        # log p(Y = 0, | G_i = nt, \theta)
         log_prob_y0_given_at = - np.log1p(np.exp(X_z1_w1.dot(beta_at)))
-
+        # log p(G_i = co | Y_i, \theta)
         logp = Y_z1_w1 * (log_prob_co + log_prob_y1_given_co_t - np.log(np.exp(log_prob_co + log_prob_y1_given_co_t) + np.exp(log_prob_at + log_prob_y1_given_at)))
         logp += (1-Y_z1_w1) * (log_prob_co + log_prob_y0_given_co_t - np.log(np.exp(log_prob_co + log_prob_y0_given_co_t) + np.exp(log_prob_at + log_prob_y0_given_at)))
+        # deciding co or at
         threshold = np.log(np.random.rand(N_z1_w1))
         G_z1_w1 = np.zeros(N_z1_w1)
         G_z1_w1[threshold < logp] = 2
@@ -80,8 +94,10 @@ class bayesian_iv():
         return G
 
     def gamma_at_sampler(self, G, gamma_at, gamma_nt):
+        # proposing gamma_at_new
         gamma_at_new = gamma_at + self.prop_scale['gamma_at'] * np.random.randn(self.dim)
 
+        # calculating log likelihood
         if sum(G==0) > 0:
             X_at = self.X[G==0]
             log_likelihood_old = X_at.dot(gamma_at).sum() - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum()
@@ -90,9 +106,11 @@ class bayesian_iv():
             log_likelihood_old = - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum()
             log_likelihood_new = - np.log1p(np.exp(self.X.dot(gamma_at_new)) + np.exp(self.X.dot(gamma_nt))).sum()
 
+        # calculating log prior
         log_prior_old = (self.N_a / 12 / self.N) * (self.X.dot(gamma_at).sum() - 3 * np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum())
         log_prior_new = (self.N_a / 12 / self.N) * (self.X.dot(gamma_at_new).sum() - 3 * np.log1p(np.exp(self.X.dot(gamma_at_new)) + np.exp(self.X.dot(gamma_nt))).sum())
-        
+
+        # deciding accept or not     
         log_acceptance_ratio = log_likelihood_new + log_prior_new - log_likelihood_old - log_prior_old
         if log_acceptance_ratio > np.log(np.random.rand()):
             return gamma_at_new
@@ -100,8 +118,10 @@ class bayesian_iv():
             return gamma_at
     
     def gamma_nt_sampler(self, G, gamma_at, gamma_nt):
+        # proposing gamma_nt_new
         gamma_nt_new = gamma_nt + self.prop_scale['gamma_nt'] * np.random.randn(self.dim)
 
+        # calculating log likelihood
         if sum(G==1) > 0:
             X_nt = self.X[G==1]
             log_likelihood_old = X_nt.dot(gamma_nt).sum() - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum()
@@ -110,9 +130,11 @@ class bayesian_iv():
             log_likelihood_old = - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum()
             log_likelihood_new = - np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt_new))).sum()
 
+        # calculating log prior
         log_prior_old = (self.N_a / 12 / self.N) * (self.X.dot(gamma_nt).sum() - 3 * np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))).sum())
         log_prior_new = (self.N_a / 12 / self.N) * (self.X.dot(gamma_nt_new).sum() - 3 * np.log1p(np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt_new))).sum())
 
+        # deciding accept or not
         log_acceptance_ratio = log_likelihood_new + log_prior_new - log_likelihood_old - log_prior_old
         if log_acceptance_ratio > np.log(np.random.rand()):
             return gamma_nt_new
@@ -120,8 +142,10 @@ class bayesian_iv():
             return gamma_nt
 
     def beta_at_sampler(self, G, beta_at):
+        # proposing beta_at_new
         beta_at_new = beta_at + self.prop_scale['beta_at'] * np.random.randn(self.dim)
 
+        # calculating log likelihood
         if sum(G==0) > 0:
             X_at = self.X[G==0]
             Y_at = self.Y[G==0]
@@ -131,8 +155,11 @@ class bayesian_iv():
             log_likelihood_old = - np.log1p(np.exp(X_at.dot(beta_at))).sum()
             log_likelihood_new = - np.log1p(np.exp(X_at.dot(beta_at_new))).sum()
 
+        # calculating log prior
         log_prior_old = (2 * self.N_a / 12 / self.N) * (self.X.dot(beta_at).sum() - 2 * np.log1p(np.exp(self.X.dot(beta_at))).sum())
         log_prior_new = (2 * self.N_a / 12 / self.N) * (self.X.dot(beta_at_new).sum() - 2 * np.log1p(np.exp(self.X.dot(beta_at_new))).sum())
+
+        # deciding accept or not
         log_acceptance_ratio = log_likelihood_new + log_prior_new - log_likelihood_old - log_prior_old
         if log_acceptance_ratio > np.log(np.random.rand()):
             return beta_at_new
@@ -140,8 +167,10 @@ class bayesian_iv():
             return beta_at
   
     def beta_nt_sampler(self, G, beta_nt):
+        # proposing beta_nt_new
         beta_nt_new = beta_nt + self.prop_scale['beta_nt'] * np.random.randn(self.dim)
 
+        # calculating log likelihood
         if sum(G==1) > 0:
             X_nt = self.X[G==1]
             Y_nt = self.Y[G==1]
@@ -151,8 +180,11 @@ class bayesian_iv():
             log_likelihood_old = 0
             log_likelihood_new = 0
 
+        # calculating log prior
         log_prior_old = (2 * self.N_a / 12 / self.N) * (self.X.dot(beta_nt).sum() - 2 * np.log1p(np.exp(self.X.dot(beta_nt))).sum())
         log_prior_new = (2 * self.N_a / 12 / self.N) * (self.X.dot(beta_nt_new).sum() - 2 * np.log1p(np.exp(self.X.dot(beta_nt_new))).sum())
+        
+        # deciding accept or not
         log_acceptance_ratio = log_likelihood_new + log_prior_new - log_likelihood_old - log_prior_old
         if log_acceptance_ratio > np.log(np.random.rand()):
             return beta_nt_new
@@ -160,8 +192,10 @@ class bayesian_iv():
             return beta_nt
 
     def beta_co_c_sampler(self, G, beta_co_c):
+        # proposing beta_co_c_new
         beta_co_c_new = beta_co_c + self.prop_scale['beta_co_c'] * np.random.randn(self.dim)
 
+        # calculating log likelihood
         if sum((G==2) & (self.Z==0)) > 0:
             X_co_c = self.X[(G==2) & (self.Z==0)]
             Y_co_c = self.Y[(G==2) & (self.Z==0)]
@@ -171,8 +205,11 @@ class bayesian_iv():
             log_likelihood_old = 0
             log_likelihood_new = 0
 
+        # calculating log prior
         log_prior_old = (self.N_a / 12 / self.N) * (self.X.dot(beta_co_c).sum() - 2 * np.log1p(np.exp(self.X.dot(beta_co_c))).sum())
         log_prior_new = (self.N_a / 12 / self.N) * (self.X.dot(beta_co_c_new).sum() - 2 * np.log1p(np.exp(self.X.dot(beta_co_c_new))).sum())
+        
+        # deciding accept or not
         log_acceptance_ratio = log_likelihood_new + log_prior_new - log_likelihood_old - log_prior_old
         if log_acceptance_ratio > np.log(np.random.rand()):
             return beta_co_c_new
@@ -180,8 +217,10 @@ class bayesian_iv():
             return beta_co_c
 
     def beta_co_t_sampler(self, G, beta_co_t):
+        # proposing beta_co_c_new
         beta_co_t_new = beta_co_t + self.prop_scale['beta_co_t'] * np.random.randn(self.dim)
 
+        # calculating log likelihood
         if sum((G==2) & (self.Z==1)) > 0:
             X_co_t = self.X[(G==2) & (self.Z==1)]
             Y_co_t = self.Y[(G==2) & (self.Z==1)]
@@ -191,8 +230,11 @@ class bayesian_iv():
             log_likelihood_old = 0
             log_likelihood_new = 0
 
+        # calculating log prior
         log_prior_old = (self.N_a / 12 / self.N) * (self.X.dot(beta_co_t).sum() - 2 * np.log1p(np.exp(self.X.dot(beta_co_t))).sum())
         log_prior_new = (self.N_a / 12 / self.N) * (self.X.dot(beta_co_t_new).sum() - 2 * np.log1p(np.exp(self.X.dot(beta_co_t_new))).sum())
+        
+        # deciding accept or not
         log_acceptance_ratio = log_likelihood_new + log_prior_new - log_likelihood_old - log_prior_old
         if log_acceptance_ratio > np.log(np.random.rand()):
             return beta_co_t_new
@@ -260,18 +302,22 @@ class bayesian_iv():
     def Y_obs_and_mis_sampler(self, G, beta_co_c, beta_co_t):
         Y_obs_and_mis = np.full((self.N, 2), np.nan)
         
+        # pattern for at
         Y_obs_and_mis[G==0, 1] = self.Y[G==0]
+        # pattern for nt
         Y_obs_and_mis[G==1, 0] = self.Y[G==1]
         
         N_co_c = int(sum((G==2) & (self.Z==0)))
         N_co_t = int(sum((G==2) & (self.Z==1)))
 
+        # pattern for co, c
         if N_co_c > 0:
             X_co_c = self.X[(G==2) & (self.Z==0)]
             log_prob_y1_given_co_c = X_co_c.dot(beta_co_c) - np.log1p(np.exp(X_co_c.dot(beta_co_c)))
             Y_obs_and_mis[(G==2) & (self.Z==0), 0] = self.Y[(G==2) & (self.Z==0)]
             Y_obs_and_mis[(G==2) & (self.Z==0), 1] = (np.log(np.random.rand(N_co_c)) < log_prob_y1_given_co_c).astype(float)
 
+        # pattern for co, t
         if N_co_t > 0:
             X_co_t = self.X[(G==2) & (self.Z==1)]
             log_prob_y1_given_co_t = X_co_t.dot(beta_co_t) - np.log1p(np.exp(X_co_t.dot(beta_co_t)))
@@ -286,7 +332,6 @@ class bayesian_iv():
         if N_co > 0:
             tau_late = 0
             tau_late += (Y_mis_and_obs[(G==2), 1] - Y_mis_and_obs[(G==2), 0]).sum() / N_co
-
             return tau_late
         else:
             return np.nan
@@ -499,18 +544,18 @@ class bayesian_iv():
         if sum(G==0) > 0:
             X_at = self.X[G==0]
             d_log_likelihood = X_at.sum(axis=0) - (self.X * (np.exp(self.X.dot(gamma_at)) / (1 + np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))))[:, np.newaxis]).sum(axis=0)
-            return - d_log_likelihood - d_log_prior
         else:
-            return - d_log_prior
+            d_log_likelihood = - (self.X * (np.exp(self.X.dot(gamma_at)) / (1 + np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))))[:, np.newaxis]).sum(axis=0)
+        return - d_log_likelihood - d_log_prior
     
     def d_nlp_d_gamma_nt(self, G, gamma_at, gamma_nt):
         d_log_prior = (self.N_a / 12 / self.N) * (self.X.sum(axis=0) - 3 * (self.X * (np.exp(self.X.dot(gamma_nt)) / (1 + np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))))[:, np.newaxis]).sum(axis=0))
         if sum(G==1) > 0:
             X_nt = self.X[G==1]
             d_log_likelihood = X_nt.sum(axis=0) - (self.X * (np.exp(self.X.dot(gamma_nt)) / (1 + np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))))[:, np.newaxis]).sum(axis=0)
-            return - d_log_likelihood - d_log_prior
         else:
-            return - d_log_prior
+            d_log_likelihood = - (self.X * (np.exp(self.X.dot(gamma_nt)) / (1 + np.exp(self.X.dot(gamma_at)) + np.exp(self.X.dot(gamma_nt))))[:, np.newaxis]).sum(axis=0)
+        return - d_log_likelihood - d_log_prior
     
     def log_posterior_gamma(self, G, gamma_at, gamma_nt):
         log_posterior = 0
