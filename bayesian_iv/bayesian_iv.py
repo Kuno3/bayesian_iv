@@ -330,8 +330,7 @@ class bayesian_iv():
         N_co = int(sum(G==2))
 
         if N_co > 0:
-            tau_late = 0
-            tau_late += (Y_mis_and_obs[(G==2), 1] - Y_mis_and_obs[(G==2), 0]).sum() / N_co
+            tau_late = (Y_mis_and_obs[(G==2), 1] - Y_mis_and_obs[(G==2), 0]).sum() / N_co
             return tau_late
         else:
             return np.nan
