@@ -1,6 +1,5 @@
 import numpy as np
 from tqdm import tqdm
-from scipy.stats import bernoulli
 
 class bayesian_iv():
     def __init__(
@@ -244,6 +243,54 @@ class bayesian_iv():
         
         return lp
 
+    def W_obs_and_mis_sampler(self, G):
+        W_obs_and_mis = np.zeros((self.N, 2))
+        
+        W_obs_and_mis[G==0, 0] = 1
+        W_obs_and_mis[G==0, 1] = 1
+        
+        W_obs_and_mis[G==1, 0] = 0
+        W_obs_and_mis[G==1, 1] = 0
+
+        W_obs_and_mis[G==2, 0] = 0
+        W_obs_and_mis[G==2, 1] = 1
+        
+        return W_obs_and_mis
+
+    def Y_obs_and_mis_sampler(self, G, beta_co_c, beta_co_t):
+        Y_obs_and_mis = np.full((self.N, 2), np.nan)
+        
+        Y_obs_and_mis[G==0, 1] = self.Y[G==0]
+        Y_obs_and_mis[G==1, 0] = self.Y[G==1]
+        
+        N_co_c = int(sum((G==2) & (self.Z==0)))
+        N_co_t = int(sum((G==2) & (self.Z==1)))
+
+        if N_co_c > 0:
+            X_co_c = self.X[(G==2) & (self.Z==0)]
+            log_prob_y1_given_co_c = X_co_c.dot(beta_co_c) - np.log1p(np.exp(X_co_c.dot(beta_co_c)))
+            Y_obs_and_mis[(G==2) & (self.Z==0), 0] = self.Y[(G==2) & (self.Z==0)]
+            Y_obs_and_mis[(G==2) & (self.Z==0), 1] = (np.log(np.random.rand(N_co_c)) < log_prob_y1_given_co_c).astype(float)
+
+        if N_co_t > 0:
+            X_co_t = self.X[(G==2) & (self.Z==1)]
+            log_prob_y1_given_co_t = X_co_t.dot(beta_co_t) - np.log1p(np.exp(X_co_t.dot(beta_co_t)))
+            Y_obs_and_mis[(G==2) & (self.Z==1), 0] = (np.log(np.random.rand(N_co_t)) < log_prob_y1_given_co_t).astype(float)
+            Y_obs_and_mis[(G==2) & (self.Z==1), 1] = self.Y[(G==2) & (self.Z==1)]
+
+        return Y_obs_and_mis
+
+    def tau_late_sampler(self, Y_mis_and_obs, G):
+        N_co = int(sum(G==2))
+
+        if N_co > 0:
+            tau_late = 0
+            tau_late += (Y_mis_and_obs[(G==2), 1] - Y_mis_and_obs[(G==2), 0]).sum() / N_co
+
+            return tau_late
+        else:
+            return np.nan
+
     def sampling(
         self,
         num_samples,
@@ -322,7 +369,30 @@ class bayesian_iv():
                 self.beta_co_c_samples[i-burn_in, :] = beta_co_c
                 self.beta_co_t_samples[i-burn_in, :] = beta_co_t
                 self.lp_list[i-burn_in] = self.log_posterior(G, gamma_at, gamma_nt, beta_at, beta_nt, beta_co_c, beta_co_t)
-    
+
+        self.W_obs_and_mis_samples = np.array(
+            [self.W_obs_and_mis_sampler(
+                self.G_samples[i, :]
+            ) for i in range(num_samples)]
+        )
+
+        self.Y_obs_and_mis_samples = np.array(
+            [self.Y_obs_and_mis_sampler(
+                self.G_samples[i, :],
+                self.beta_co_c_samples[i, :],
+                self.beta_co_t_samples[i, :]
+            ) for i in range(num_samples)]
+        )
+
+        self.tau_late_samples = np.array(
+            [self.tau_late_sampler(
+                self.Y_obs_and_mis_samples[i, :],
+                self.G_samples[i, :]
+            ) for i in range(num_samples)]
+        )
+
+    # Functions for HMC
+
     def gamma_sampler(self, G, gamma_at, gamma_nt, step_size, num_step):
         r_init = np.random.randn(2 * self.dim)
         r = r_init - step_size / 2 * np.concatenate([
@@ -606,3 +676,24 @@ class bayesian_iv():
                 self.beta_co_c_samples[i-burn_in, :] = beta_co_c
                 self.beta_co_t_samples[i-burn_in, :] = beta_co_t
                 self.lp_list[i-burn_in] = self.log_posterior(G, gamma_at, gamma_nt, beta_at, beta_nt, beta_co_c, beta_co_t)
+
+        self.W_obs_and_mis_samples = np.array(
+            [self.W_obs_and_mis_sampler(
+                self.G_samples[i, :]
+            ) for i in range(num_samples)]
+        )
+
+        self.Y_obs_and_mis_samples = np.array(
+            [self.Y_obs_and_mis_sampler(
+                self.G_samples[i, :],
+                self.beta_co_c_samples[i, :],
+                self.beta_co_t_samples[i, :]
+            ) for i in range(num_samples)]
+        )
+
+        self.tau_late_samples = np.array(
+            [self.tau_late_sampler(
+                self.Y_obs_and_mis_samples[i, :],
+                self.G_samples[i, :]
+            ) for i in range(num_samples)]
+        )
