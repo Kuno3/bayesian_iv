@@ -313,14 +313,14 @@ class bayesian_iv():
         # pattern for co, c
         if N_co_c > 0:
             X_co_c = self.X[(G==2) & (self.Z==0)]
-            log_prob_y1_given_co_c = X_co_c.dot(beta_co_c) - np.log1p(np.exp(X_co_c.dot(beta_co_c)))
+            log_prob_y1_given_co_c = X_co_c.dot(beta_co_t) - np.log1p(np.exp(X_co_c.dot(beta_co_t)))
             Y_obs_and_mis[(G==2) & (self.Z==0), 0] = self.Y[(G==2) & (self.Z==0)]
             Y_obs_and_mis[(G==2) & (self.Z==0), 1] = (np.log(np.random.rand(N_co_c)) < log_prob_y1_given_co_c).astype(float)
 
         # pattern for co, t
         if N_co_t > 0:
             X_co_t = self.X[(G==2) & (self.Z==1)]
-            log_prob_y1_given_co_t = X_co_t.dot(beta_co_t) - np.log1p(np.exp(X_co_t.dot(beta_co_t)))
+            log_prob_y1_given_co_t = X_co_t.dot(beta_co_c) - np.log1p(np.exp(X_co_t.dot(beta_co_c)))
             Y_obs_and_mis[(G==2) & (self.Z==1), 0] = (np.log(np.random.rand(N_co_t)) < log_prob_y1_given_co_t).astype(float)
             Y_obs_and_mis[(G==2) & (self.Z==1), 1] = self.Y[(G==2) & (self.Z==1)]
 
